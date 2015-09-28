@@ -154,18 +154,32 @@ module.exports = function preRenderMiddleware (options) {
     var renderUrl;
     var preRenderUrl;
     var response;
+    var beforeRenderResponse;
 
     // Pre-render generate the site and return
     if (isPreRender) {
       renderUrl = protocol + '://' + host + this.url;
       preRenderUrl = options.prerender + renderUrl;
-      response = yield requestGet({
-        url: preRenderUrl,
-        headers: headers,
-        gzip: true
-      });
 
-      body = response[1] || '';
+      if (options.beforeRender) {
+        beforeRenderResponse = yield options.beforeRender.call(this, preRenderUrl);
+      }
+
+      if (beforeRenderResponse) {
+        body = beforeRenderResponse.body;
+      } else {
+        response = yield requestGet({
+          url: preRenderUrl,
+          headers: headers,
+          gzip: true
+        });
+
+        body = response[1] || '';
+
+        if (options.afterRender) {
+          options.afterRender.call(this, response[0]);
+        }
+      }
 
       yield* next;
 
